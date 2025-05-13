@@ -1,0 +1,8 @@
+app_identifier("com.aztech.lunchbox") # The bundle identifier of your app
+apple_id("erne.monge.s@gmail.com") # Your Apple Developer Portal username
+
+itc_team_id("127244855") # App Store Connect Team ID
+team_id("5C6UHUA564") # Developer Portal Team ID
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile

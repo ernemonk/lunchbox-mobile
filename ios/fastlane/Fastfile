@@ -1,0 +1,47 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+# Load .env file
+require 'dotenv'
+Dotenv.load
+
+FIREBASE_APP_ID = '1:268643218431:ios:3a8710399257b07a8e2dca'
+VERSION_NUMBER = '1.0.0'
+
+default_platform(:ios)
+
+platform :ios do
+  desc 'Build iOS app'
+  lane :build do
+    get_certificates()
+    get_provisioning_profile(adhoc: true)
+    increment_version_number(
+      version_number: VERSION_NUMBER
+    )
+    increment_build_number(
+      build_number: Time.now.strftime("%Y%m%d%H%M")
+    )
+    build_app(export_method: 'ad-hoc')
+  end
+
+  desc 'Distribute iOS app to Firebase App Distribution'
+  lane :distribute do
+    build
+    firebase_app_distribution(
+      app: FIREBASE_APP_ID
+      # release_notes: "Try out this app!",
+    )
+  end
+end

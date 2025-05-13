@@ -1,0 +1,99 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+
+# Environment files
+.env
+
+# iOS related
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/engine/
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+macos/Runner.xcworkspace/
+
+# Android related
+.android/
+.gradle/
+*.iml
+local.properties
+
+# VS Code
+.vscode/
+.idea/
+
+# Xcode
+DerivedData/
+*.xcworkspace
+*.xcuserstate
+
+# Misc
+*.log
+*.lock
+*.tmp
+*.swp
+*.DS_Store
+
+# Firebase crashlytics
+.crashlytics/
+
+# Web build
+web/.dart_tool/
+web/build/
+
+# Coverage
+coverage/
+
+# Linux
+linux/flutter/ephemeral/
+linux/.dart_tool/
+linux/build/
+
+# Windows
+windows/flutter/ephemeral/
+windows/.dart_tool/
+windows/build/
+
+# Flutter & build artifacts
+build/
+*.apk
+*.ipa
+*.dSYM.zip
+
+# iOS & CocoaPods
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/
+ios/Runner.app/
+
+# Fastlane artifacts
+*.cer
+*.p12
+*.mobileprovision
+
+# Firebase
+*.plist
+*.json
+
+# Dart/Pub
+.dart_tool/
+.packages
+.pub-cache/
