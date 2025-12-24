@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/theme/app_colors.dart';
+import '../models/subscription.dart';
 
+/// Sign up page for new user registration.
+/// 
+/// Allows users to create an account with email and password.
+/// Creates a user document in Firestore upon successful registration.
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
 
@@ -53,10 +59,17 @@ class _SignupPageState extends State<SignupPage> {
         password: password,
       );
 
+      // Initialize user document with subscription data
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': email,
         'uid': userCredential.user!.uid,
         'createdAt': FieldValue.serverTimestamp(),
+        'role': 'user',  // Default role
+        'fridge': [],     // Empty fridge to start
+        // Initialize with free tier subscription
+        'subscription': UserSubscription.free().toMap(),
+        // Initialize usage tracking
+        'usage': UserUsage().toMap(),
       });
 
       Navigator.pushReplacementNamed(context, '/home');
@@ -77,16 +90,8 @@ class _SignupPageState extends State<SignupPage> {
           children: [
             Positioned.fill(
               child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                          colors: [
-  Color.fromARGB(255, 255, 217, 113), // Warm peach (hunger/appetite)
-  Color(0xFFFFDDA56), // Keep your original green for freshness
-],
-
-                    begin: Alignment.topCenter,
-                    end: Alignment.topLeft,
-                  ),
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
                 ),
               ),
             ),
@@ -128,9 +133,10 @@ class _SignupPageState extends State<SignupPage> {
                         const Text(
                           'Sign Up',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -138,8 +144,8 @@ class _SignupPageState extends State<SignupPage> {
                         const Text(
                           'Create an account with your email and password',
                           style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
+                            fontSize: 15,
+                            color: AppColors.textSecondary,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -148,10 +154,20 @@ class _SignupPageState extends State<SignupPage> {
                           controller: _emailController,
                           focusNode: _emailFocusNode,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Email',
+                            labelStyle: const TextStyle(color: AppColors.textSecondary),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(25)),
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                           ),
                         ),
@@ -160,10 +176,20 @@ class _SignupPageState extends State<SignupPage> {
                           controller: _passwordController,
                           focusNode: _passwordFocusNode,
                           obscureText: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Password',
+                            labelStyle: const TextStyle(color: AppColors.textSecondary),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(25)),
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                           ),
                         ),
@@ -171,10 +197,20 @@ class _SignupPageState extends State<SignupPage> {
                         TextField(
                           controller: _confirmPasswordController,
                           obscureText: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Confirm Password',
+                            labelStyle: const TextStyle(color: AppColors.textSecondary),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(25)),
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                            ),
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(12)),
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
                             ),
                           ),
                         ),
@@ -184,30 +220,43 @@ class _SignupPageState extends State<SignupPage> {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: Text(
                               _errorMessage,
-                              style: const TextStyle(color: Colors.red),
+                              style: const TextStyle(color: AppColors.error),
                               textAlign: TextAlign.center,
                             ),
                           ),
-                        FractionallySizedBox(
-                          widthFactor: 2 / 3,
-                          child: ElevatedButton(
-                            onPressed: _signUpWithEmailAndPassword,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              minimumSize: const Size(double.infinity, 50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _isLoading ? null : _signUpWithEmailAndPassword,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                gradient: AppColors.primaryGradient,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [AppColors.primaryShadow],
+                              ),
+                              child: Center(
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 24,
+                                        width: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Sign Up',
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          letterSpacing: 0.3,
+                                        ),
+                                      ),
                               ),
                             ),
-                            child: _isLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Sign Up',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                    ),
-                                  ),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -215,7 +264,10 @@ class _SignupPageState extends State<SignupPage> {
                           onPressed: () {
                             Navigator.pushNamed(context, '/login');
                           },
-                          child: const Text("Already have an account? Log In"),
+                          child: const Text(
+                            "Already have an account? Log In",
+                            style: TextStyle(color: AppColors.primary),
+                          ),
                         ),
                       ],
                     ),

@@ -1,0 +1,158 @@
+{
+  "@@locale": "en",
+  
+  "appName": "Lunchbox",
+  "@appName": {
+    "description": "The name of the application"
+  },
+
+  "login": "Log In",
+  "@login": {
+    "description": "Login button text"
+  },
+
+  "signup": "Sign Up",
+  "@signup": {
+    "description": "Signup button text"
+  },
+
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button text"
+  },
+
+  "email": "Email",
+  "@email": {
+    "description": "Email field label"
+  },
+
+  "password": "Password",
+  "@password": {
+    "description": "Password field label"
+  },
+
+  "myFridge": "My Fridge",
+  "@myFridge": {
+    "description": "My Fridge page title"
+  },
+
+  "recipes": "Recipes",
+  "@recipes": {
+    "description": "Recipes page title"
+  },
+
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings page title"
+  },
+
+  "addItem": "Add Item",
+  "@addItem": {
+    "description": "Add item button"
+  },
+
+  "scanBarcode": "Scan Barcode",
+  "@scanBarcode": {
+    "description": "Scan barcode button"
+  },
+
+  "takePhoto": "Take Photo",
+  "@takePhoto": {
+    "description": "Take photo button"
+  },
+
+  "all": "All",
+  "@all": {
+    "description": "All categories filter"
+  },
+
+  "category": "Category",
+  "@category": {
+    "description": "Category label"
+  },
+
+  "expiryDate": "Expiry Date",
+  "@expiryDate": {
+    "description": "Expiry date label"
+  },
+
+  "quantity": "Quantity",
+  "@quantity": {
+    "description": "Quantity label"
+  },
+
+  "save": "Save",
+  "@save": {
+    "description": "Save button"
+  },
+
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button"
+  },
+
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button"
+  },
+
+  "edit": "Edit",
+  "@edit": {
+    "description": "Edit button"
+  },
+
+  "subscription": "Subscription",
+  "@subscription": {
+    "description": "Subscription label"
+  },
+
+  "freeTrial": "Free Trial",
+  "@freeTrial": {
+    "description": "Free trial label"
+  },
+
+  "premium": "Premium",
+  "@premium": {
+    "description": "Premium subscription label"
+  },
+
+  "upgrade": "Upgrade",
+  "@upgrade": {
+    "description": "Upgrade button"
+  },
+
+  "searchRecipes": "Search Recipes",
+  "@searchRecipes": {
+    "description": "Search recipes placeholder"
+  },
+
+  "generateRecipe": "Generate Recipe",
+  "@generateRecipe": {
+    "description": "Generate recipe button"
+  },
+
+  "ingredients": "Ingredients",
+  "@ingredients": {
+    "description": "Ingredients label"
+  },
+
+  "instructions": "Instructions",
+  "@instructions": {
+    "description": "Instructions label"
+  },
+
+  "cookingTime": "Cooking Time",
+  "@cookingTime": {
+    "description": "Cooking time label"
+  },
+
+  "servings": "Servings",
+  "@servings": {
+    "description": "Servings label"
+  },
+
+  "language": "Language",
+  "@language": {
+    "description": "Language settings label"
+  }
+}

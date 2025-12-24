@@ -3,9 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import '../core/theme/app_colors.dart';
 import 'package:lunchbox/views/privacy_policy.dart';
-import 'package:lunchbox/views/tweak_the_ai.dart'; // Make sure this path is correct
+import 'package:lunchbox/views/tweak_the_ai.dart';
+import 'package:lunchbox/views/subscription_page.dart';
 
+/// Settings page for user account management.
+/// 
+/// Features:
+/// - Logout functionality
+/// - Account deletion
+/// - Privacy policy access
+/// - Admin: AI prompt management (visible only to admin users)
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -54,7 +63,14 @@ class _SettingsPageState extends State<SettingsPage> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text("Confirm Account Deletion"),
+              backgroundColor: AppColors.surface,
+              title: const Text(
+                "Confirm Account Deletion",
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   children: [
@@ -62,13 +78,21 @@ class _SettingsPageState extends State<SettingsPage> {
                       "⚠ Warning: This action is irreversible!\n"
                       "All your data, including account details and associated files, "
                       "will be permanently erased.",
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 20),
                     TextField(
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: "Enter your email to confirm",
-                        border: OutlineInputBorder(),
+                        labelStyle: const TextStyle(color: AppColors.textSecondary),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        ),
                       ),
                       onChanged: (value) {
                         setState(() {
@@ -84,18 +108,21 @@ class _SettingsPageState extends State<SettingsPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancel"),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: isEmailValid
                       ? () {
-                          Navigator.pop(context); // Close the dialog
+                          Navigator.pop(context);
                           deleteAccount();
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    disabledBackgroundColor: Colors.red.shade200,
+                    backgroundColor: AppColors.error,
+                    disabledBackgroundColor: AppColors.error.withOpacity(0.5),
                   ),
                   child: const Text("Delete Permanently"),
                 ),
@@ -141,20 +168,48 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           const SizedBox(height: 20),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text("Logout"),
+            leading: const Icon(Icons.star, color: AppColors.primary),
+            title: const Text(
+              "My Subscription",
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              "Manage your plan & free trial",
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SubscriptionPage()),
+              );
+            },
+          ),
+          Divider(color: AppColors.primary.withOpacity(0.1)),
+          ListTile(
+            leading: const Icon(Icons.logout, color: AppColors.primary),
+            title: const Text(
+              "Logout",
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            ),
             onTap: () => _logout(context),
           ),
-          const Divider(),
+          Divider(color: AppColors.primary.withOpacity(0.1)),
           ListTile(
-            leading: const Icon(Icons.delete_forever),
-            title: const Text("Delete Account"),
+            leading: const Icon(Icons.delete_forever, color: AppColors.error),
+            title: const Text(
+              "Delete Account",
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            ),
             onTap: _showDeleteAccountDialog,
           ),
-          const Divider(),
+          Divider(color: AppColors.primary.withOpacity(0.1)),
           ListTile(
-            leading: const Icon(Icons.event),
-            title: const Text("Privacy Policy"),
+            leading: const Icon(Icons.event, color: AppColors.secondary),
+            title: const Text(
+              "Privacy Policy",
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+            ),
             onTap: () {
               Navigator.push(
                 context,
@@ -162,19 +217,21 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
-          const Divider(),
+          Divider(color: AppColors.primary.withOpacity(0.1)),
           if (isAdmin)
-  ListTile(
-    leading: const Icon(Icons.settings_suggest),
-    title: const Text("Tweak the ai"),
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const TweakTheAIPage()),
-      );
-    },
-  ),
-
+            ListTile(
+              leading: const Icon(Icons.settings_suggest, color: AppColors.accent),
+              title: const Text(
+                "Tweak the ai",
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TweakTheAIPage()),
+                );
+              },
+            ),
         ],
       ),
     );

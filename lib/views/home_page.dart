@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lunchbox/components/menu_bar.dart';
+import 'package:lunchbox/components/navigation/bottom_nav_bar.dart';
+import 'package:lunchbox/core/theme/app_colors.dart';
 import 'package:lunchbox/views/recipe_generator.dart';
 import 'package:lunchbox/views/settings_page.dart';
 import 'package:lunchbox/views/favorites_page.dart';
 import 'package:lunchbox/views/myfridge_page.dart';
 
+/// Main home page that serves as the navigation hub.
+/// 
+/// Contains a bottom navigation bar with four tabs:
+/// - Recipe Generator
+/// - Favorites
+/// - My Fridge
+/// - Settings
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
 
@@ -14,22 +22,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0; // Track selected screen index
+  int _selectedIndex = 0;
 
-  // Titles for each screen
-  final List<String> _titles = ["Lunchboxer", "Favorites","My Fridge","Settings"];
-
-  // Screens to navigate between
-  final List<Widget> _screens = [
-    const UserPreferencesPage(),  // Placeholder Home Screen
-    const FavoritesPage(), // Placeholder Settings Screen
-    const MyFridgePage(), // Placeholder Settings Screen
-    const SettingsPage(), // Placeholder Settings Screen
-
-
+  /// Screen titles for the app bar
+  static const List<String> _titles = [
+    'Cook Something Delicious',
+    'Favorites',
+    'My Fridge',
+    'Settings',
   ];
 
-  // Handle navigation
+  /// Screens corresponding to each navigation tab
+  final List<Widget> _screens = const [
+    UserPreferencesPage(),
+    FavoritesPage(),
+    MyFridgePage(),
+    SettingsPage(),
+  ];
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -44,44 +54,48 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-appBar: PreferredSize(
-  preferredSize: const Size.fromHeight(kToolbarHeight),
-  child: Container(
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      border: Border(
-        bottom: BorderSide(
-          color: Color.fromARGB(255, 200, 200, 200), // Change this to your desired border color
-          width: 1.0,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.primary.withOpacity(0.1),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              _titles[_selectedIndex],
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                letterSpacing: -0.3,
+              ),
+            ),
+            automaticallyImplyLeading: false,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout, color: AppColors.textSecondary),
+                onPressed: _signOut,
+                tooltip: 'Sign Out',
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-    child: AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      title: Text(
-        _titles[_selectedIndex],
-        style: const TextStyle(color: Colors.indigo),
-      ),
-      automaticallyImplyLeading: false,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.logout, color: Colors.black),
-          onPressed: _signOut,
-        ),
-      ],
-    ),
-  ),
-),
-
-
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens, // Show the selected screen
+        children: _screens,
       ),
-      bottomNavigationBar: Menu(
+      bottomNavigationBar: BottomNavBar(
         currentIndex: _selectedIndex,
-        onTap: _onItemTapped, // Handle navigation
+        onTap: _onItemTapped,
       ),
     );
   }

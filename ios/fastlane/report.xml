@@ -5,42 +5,42 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.00043">
+      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000448">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="1: Switch to ios build lane" time="0.000282">
+      <testcase classname="fastlane.lanes" name="1: Switch to ios build lane" time="0.000364">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="2: get_certificates" time="5.645949">
+      <testcase classname="fastlane.lanes" name="2: get_certificates" time="3.649726">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="3: get_provisioning_profile" time="5.74504">
+      <testcase classname="fastlane.lanes" name="3: get_provisioning_profile" time="4.986464">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="4: increment_version_number" time="0.400615">
+      <testcase classname="fastlane.lanes" name="4: increment_version_number" time="0.426339">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="5: increment_build_number" time="0.397599">
+      <testcase classname="fastlane.lanes" name="5: increment_build_number" time="0.433197">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="6: build_app" time="630.830319">
+      <testcase classname="fastlane.lanes" name="6: build_app" time="651.899292">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="7: firebase_app_distribution" time="158.806247">
+      <testcase classname="fastlane.lanes" name="7: firebase_app_distribution" time="7.387012">
         
       </testcase>
     

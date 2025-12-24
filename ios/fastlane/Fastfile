@@ -44,4 +44,18 @@ platform :ios do
       # release_notes: "Try out this app!",
     )
   end
+
+  desc 'Release iOS app to App Store (via TestFlight)'
+  lane :release do
+    get_certificates()
+    get_provisioning_profile(app_store: true)
+    increment_version_number(
+      version_number: VERSION_NUMBER
+    )
+    increment_build_number(
+      build_number: Time.now.strftime("%Y%m%d%H%M")
+    )
+    build_app(export_method: 'app-store')
+    upload_to_testflight
+  end
 end

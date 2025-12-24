@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check subscription status
+    function isActiveSubscriber(userData) {
+      return userData.subscription.status == 'active' &&
+             userData.subscription.expiryDate > request.time &&
+             userData.subscription.tier in ['premium', 'family'];
+    }
+    
+    // Helper function to check generation limit
+    function canGenerateRecipes(userData) {
+      let today = request.time.toMillis() / 86400000;  // Days since epoch
+      let lastGenDate = userData.usage.lastGenerationDate;
+      
+      // Premium = unlimited
+      if (isActiveSubscriber(userData)) {
+        return true;
+      }
+      
+      // Free tier = 5 per day
+      return userData.usage.generationsToday < 5;
+    }
+    
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth.uid == userId;
+      
+      // Only allow specific subscription fields to be updated
+      allow update: if request.auth.uid == userId &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['subscription', 'usage', 'fridge', 'email', 'role', 'createdAt']);
+    }
+    
+    // Recipes collection - user's own recipes
+    match /recipes/{recipeId} {
+      allow read: if request.auth.uid == resource.data.user;
+      allow create: if request.auth.uid == request.resource.data.user;
+      allow update, delete: if request.auth.uid == resource.data.user;
+    }
+    
+    // User analytics collection - fully protected
+    match /user_analytics/{userId}/{document=**} {
+      allow read, write: if request.auth.uid == userId;
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -35,7 +35,7 @@ class Menu extends StatelessWidget {
   items: const [
     BottomNavigationBarItem(
       icon: Icon(Icons.dinner_dining_outlined),
-      label: 'Lunchboxer',
+      label: 'Generator',
     ),
     BottomNavigationBarItem(
       icon: Icon(Icons.star),

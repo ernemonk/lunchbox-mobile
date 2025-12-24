@@ -2,8 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'recipe.dart'; // Your viewer page
+import '../core/theme/app_colors.dart';
+import 'recipe.dart';
 
+/// Favorites page displaying saved recipes.
+/// 
+/// Shows a list of recipes that the user has saved.
+/// Recipes are synced in real-time with Firebase Firestore.
 class FavoritesPage extends StatefulWidget {
   const FavoritesPage({super.key});
 
@@ -33,7 +38,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         setState(() {
           userRecipes = snapshot.docs
               .map((doc) => {
-                    ...doc.data() as Map<String, dynamic>,
+                    ...doc.data(),
                     'uid': doc.id,
                   })
               .toList();
@@ -52,10 +57,29 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: userRecipes.isEmpty
-          ? const Center(
-              child: Text(
-                'You haven’t added any recipes yet.',
-                style: TextStyle(color: Colors.grey),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.favorite_border, size: 80, color: AppColors.textSecondary),
+                  SizedBox(height: 16),
+                  Text(
+                    'You haven\'t added any recipes yet.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Save recipes to find them here',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             )
           : ListView.builder(
@@ -77,23 +101,34 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       ),
                     );
                   },
-                  child: Card(
-                    elevation: 5,
+                  child: Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    shape: RoundedRectangleBorder(
+                    decoration: BoxDecoration(
+                      gradient: AppColors.cardGradient,
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primaryLight.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [AppColors.cardShadow],
                     ),
-                    color: Colors.indigo.shade50,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 20),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            color: Colors.amber,
-                            size: 28,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.star_rounded,
+                              color: AppColors.accent,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -105,7 +140,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.indigo,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
@@ -113,7 +148,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                   'Tap to view details',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.indigo,
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -121,7 +156,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           ),
                           const Icon(
                             Icons.arrow_forward_ios,
-                            color: Colors.white70,
+                            color: AppColors.primary,
                             size: 18,
                           ),
                         ],

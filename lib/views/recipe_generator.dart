@@ -1,10 +1,17 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shimmer/shimmer.dart';
 
-import '../services/recipe_generator.dart';
+import '../core/theme/app_colors.dart';
+import '../services/recipe_service.dart';
+import '../services/subscription_service.dart';
+import '../services/recipe_log_service.dart';
 import 'recipe.dart';
-import '../components/bouncing_image_overlay.dart';
+import 'subscription_page.dart';
 
 class UserPreferencesPage extends StatefulWidget {
   const UserPreferencesPage({super.key});
@@ -14,24 +21,75 @@ class UserPreferencesPage extends StatefulWidget {
 }
 
 class _UserPreferencesPageState extends State<UserPreferencesPage> {
-  String? selectedDiet = 'Carnivore';
+  String? selectedDiet = 'Any';
+  int recipeCount = 5;
   bool hasAllergies = false;
   bool useOnlyFridgeItems = false;
   TextEditingController allergiesController = TextEditingController();
   TextEditingController instructionsController = TextEditingController();
 
-  final List<String> dietOptions = ['Carnivore', 'Vegetarian', 'Vegan', 'Seafood/fish', 'Bird', 'Random'];
+  final List<String> dietOptions = [
+    'Any',
+    'Keto',
+    'Carnivore',
+    'Vegetarian',
+    'Vegan',
+    'Pescetarian',
+    'Raw Vegan',
+    'Ayurvedic'
+  ];
+  final List<int> recipeCountOptions = [3, 5, 10, 15];
 
   List<Map<String, dynamic>> generatedRecipes = [];
   bool isLoading = false;
+  String streamingText = '';
+  String? errorMessage;
+  int retryCount = 0;
+  static const int maxRetries = 3;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedRecipes(); // Load saved recipes on startup
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _initHive();
+    await _loadSavedRecipes();
+    await _loadPreferences();
+  }
+
+  Future<void> _initHive() async {
+    try {
+      await Hive.initFlutter();
+      if (!Hive.isBoxOpen('recipes')) {
+        await Hive.openBox('recipes');
+      }
+      print('[HIVE] Initialized successfully');
+    } catch (e) {
+      print('[HIVE] Initialization failed: $e');
+    }
   }
 
   Future<void> _loadSavedRecipes() async {
+    try {
+      if (!Hive.isBoxOpen('recipes')) {
+        print('[CACHE] Hive box not yet open, skipping Hive cache');
+        throw Exception('Box not open');
+      }
+      final box = Hive.box('recipes');
+      final cachedRecipes = box.get('cachedRecipes');
+      if (cachedRecipes != null && cachedRecipes is List) {
+        setState(() {
+          generatedRecipes = cachedRecipes.cast<Map<String, dynamic>>();
+        });
+        print('[CACHE] Loaded ${generatedRecipes.length} recipes from Hive');
+        return;
+      }
+    } catch (e) {
+      print('[CACHE] Hive load failed: $e, falling back to SharedPreferences');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('savedRecipes');
     if (saved != null) {
@@ -44,6 +102,32 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
         print("Failed to decode saved recipes: $e");
       }
     }
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      selectedDiet = prefs.getString('selectedDiet') ?? 'Any';
+      hasAllergies = prefs.getBool('hasAllergies') ?? false;
+      useOnlyFridgeItems = prefs.getBool('useOnlyFridgeItems') ?? false;
+      allergiesController.text = prefs.getString('allergies') ?? '';
+      instructionsController.text = prefs.getString('instructions') ?? '';
+    });
+  }
+
+  Future<void> _saveRecipes(List<Map<String, dynamic>> recipes) async {
+    try {
+      if (Hive.isBoxOpen('recipes')) {
+        final box = Hive.box('recipes');
+        await box.put('cachedRecipes', recipes);
+        print('[CACHE] Saved ${recipes.length} recipes to Hive');
+      }
+    } catch (e) {
+      print('[CACHE] Hive save failed: $e');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('savedRecipes', jsonEncode(recipes));
   }
 
   void _openPreferencesSheet() {
@@ -162,9 +246,23 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
     setState(() {
       isLoading = true;
       generatedRecipes = [];
+      errorMessage = null;
+      retryCount = 0;
     });
 
-    String diet = selectedDiet ?? 'Carnivore';
+    await _attemptGeneration();
+  }
+
+  Future<void> _generateQuickMeal(String mealType, String diet) async {
+    setState(() {
+      selectedDiet = diet;
+      instructionsController.text = 'Quick $mealType meal';
+    });
+    await _generateRecipes();
+  }
+
+  Future<void> _attemptGeneration() async {
+    String diet = selectedDiet ?? 'Any';
     String allergies = hasAllergies ? allergiesController.text : 'None';
     String instructions = instructionsController.text;
 
@@ -172,6 +270,7 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
       final result = await generateRecipes(
         promptTitle: "New",
         diet: diet,
+        recipeCount: recipeCount,
         hasAllergies: hasAllergies,
         allergies: allergies,
         additionalInstructions: instructions,
@@ -211,7 +310,29 @@ class _UserPreferencesPageState extends State<UserPreferencesPage> {
           generatedRecipes = [{'text': 'Unexpected result format'}];
         }
         isLoading = false;
+        errorMessage = null;
+        retryCount = 0;
       });
+
+      await _saveRecipes(generatedRecipes);
+    } catch (e) {
+      print('[ERROR] Recipe generation failed: $e');
+      if (retryCount < maxRetries) {
+        retryCount++;
+        final delay = Duration(seconds: retryCount * 2);
+        setState(() {
+          errorMessage = 'Connection issue. Retrying in ${delay.inSeconds}s... (Attempt $retryCount/$maxRetries)';
+        });
+        await Future.delayed(delay);
+        await _attemptGeneration();
+      } else {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Failed to generate recipes after $maxRetries attempts. Please check your connection and try again.';
+        });
+      }
+    }
+  }
 
       // Save recipes locally
       final prefs = await SharedPreferences.getInstance();
