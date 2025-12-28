@@ -8,6 +8,7 @@ import 'services/subscription_service.dart';
 import 'views/login_page.dart';
 import 'views/signup_page.dart';
 import 'views/home_page.dart';
+import 'views/subscription_page.dart';
 // Temporarily commented until l10n generation works
 // import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -53,6 +54,7 @@ class Lunchbox extends StatelessWidget {
         '/home': (context) => const MyHomePage(),
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignupPage(),
+        '/subscription': (context) => const SubscriptionPage(),
       },
     );
   }

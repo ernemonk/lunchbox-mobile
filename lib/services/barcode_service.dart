@@ -80,17 +80,35 @@ class BarcodeService {
       }
 
       // Query OpenFoodFacts API
+      print('\n========== BARCODE LOOKUP START ==========');
+      print('[BARCODE] Looking up barcode: $barcode');
+      print('[BARCODE] API URL: $_openFoodFactsAPI/$barcode.json');
+      
       final response = await http
           .get(
             Uri.parse('$_openFoodFactsAPI/$barcode.json'),
           )
           .timeout(const Duration(seconds: 5));
 
+      print('[BARCODE] Response status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        
+        print('[BARCODE] Full API Response:');
+        print(jsonEncode(data));
+        print('\n[BARCODE] Product status: ${data['status']}');
 
         if (data['status'] == 1) {
           final product = data['product'];
+          
+          print('\n[BARCODE] Raw Product Data:');
+          print('  - product_name: ${product['product_name']}');
+          print('  - brands: ${product['brands']}');
+          print('  - quantity: ${product['quantity']}');
+          print('  - categories: ${product['categories']}');
+          print('  - categories_tags: ${product['categories_tags']}');
+          
           final result = {
             'name': _extractProductName(product),
             'barcode': barcode,
@@ -99,6 +117,14 @@ class BarcodeService {
             'brand': product['brands'] ?? '',
             'quantity': product['quantity'] ?? '',
           };
+          
+          print('\n[BARCODE] Processed Result:');
+          print('  - name: ${result['name']}');
+          print('  - category: ${result['category']}');
+          print('  - unit: ${result['unit']}');
+          print('  - brand: ${result['brand']}');
+          print('  - quantity: ${result['quantity']}');
+          print('========== BARCODE LOOKUP END ==========\n');
 
           // Cache result
           await prefs.setString(
@@ -115,9 +141,12 @@ class BarcodeService {
       }
     } catch (e) {
       print('[BARCODE] Lookup error: $e');
+      print('========== BARCODE LOOKUP END (ERROR) ==========\n');
     }
 
     // Fallback: return unknown product
+    print('[BARCODE] Using fallback data for unknown product');
+    print('========== BARCODE LOOKUP END (FALLBACK) ==========\n');
     return {
       'name': 'Scanned Item',
       'barcode': barcode,
@@ -131,7 +160,28 @@ class BarcodeService {
   /// Extract clean product name from OpenFoodFacts data
   /// Removes redundant brand/quantity info for clarity
   static String _extractProductName(Map<String, dynamic> product) {
-    var name = product['product_name'] ?? 'Unknown Item';
+    // Try multiple name fields in order of preference
+    var name = product['product_name'] ?? 
+               product['product_name_en'] ?? 
+               product['generic_name'] ?? 
+               product['abbreviated_product_name'] ?? 
+               '';
+
+    // If still empty or "Unknown", try to construct from brand + generic name
+    if (name.isEmpty || name.toLowerCase() == 'unknown' || name.toLowerCase() == 'unknown product') {
+      final brand = product['brands'] ?? '';
+      final genericName = product['generic_name'] ?? product['generic_name_en'] ?? '';
+      
+      if (brand.isNotEmpty && genericName.isNotEmpty) {
+        name = '$brand $genericName';
+      } else if (brand.isNotEmpty) {
+        name = '$brand Product';
+      } else if (genericName.isNotEmpty) {
+        name = genericName;
+      } else {
+        name = 'Unknown Item';
+      }
+    }
 
     // Remove trailing quantity if present (will show separately)
     name = name.replaceAll(RegExp(r'\s*\(\d+[a-zA-Z]*\)\s*$'), '').trim();
@@ -170,7 +220,7 @@ class BarcodeService {
         combined.contains('egg') ||
         combined.contains('legume') ||
         combined.contains('nut')) {
-      return 'Proteins';
+      return 'Meat & Protein';
     }
 
     // Produce check
@@ -179,7 +229,7 @@ class BarcodeService {
         combined.contains('produce') ||
         combined.contains('plant') ||
         combined.contains('organic')) {
-      return 'Produce';
+      return 'Vegetables';
     }
 
     // Pantry check
@@ -189,7 +239,7 @@ class BarcodeService {
         combined.contains('cereal') ||
         combined.contains('bread') ||
         combined.contains('staple')) {
-      return 'Pantry';
+      return 'Bread & Grains';
     }
 
     return 'Other';

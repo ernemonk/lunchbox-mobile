@@ -74,12 +74,23 @@ class RecipeService {
     required bool useOnlyFridgeItems,
     required String formattedIngredients,
   }) {
+    print('[RECIPE_GEN] ═══════════════════════════════════════════════════════');
+    print('[RECIPE_GEN] 📋 Building prompt with parameters:');
+    print('[RECIPE_GEN]    • Diet: $diet');
+    print('[RECIPE_GEN]    • Recipe Count: $recipeCount');
+    print('[RECIPE_GEN]    • Has Allergies: $hasAllergies');
+    print('[RECIPE_GEN]    • Allergies: ${hasAllergies ? allergies : "None"}');
+    print('[RECIPE_GEN]    • Additional Instructions: $additionalInstructions');
+    print('[RECIPE_GEN]    • Use Only Fridge Items: $useOnlyFridgeItems ${useOnlyFridgeItems ? "🔒 STRICT MODE" : "🔓 FLEXIBLE MODE"}');
+    print('[RECIPE_GEN]    • Ingredients: $formattedIngredients');
+    print('[RECIPE_GEN] ═══════════════════════════════════════════════════════');
+    
     return rawPrompt
         .replaceAll(r'$diet', diet)
         .replaceAll(r'$recipeCount', recipeCount.toString())
         .replaceAll(r'$allergies', hasAllergies ? allergies : 'None')
         .replaceAll(r'$additionalInstructions', additionalInstructions)
-        .replaceAll(r'$useOnlyFridgeItems', useOnlyFridgeItems ? 'Yes' : 'No')
+        .replaceAll(r'$useOnlyFridgeItems', useOnlyFridgeItems ? 'true' : 'false')
         .replaceAll(r'$ingredients', formattedIngredients);
   }
 

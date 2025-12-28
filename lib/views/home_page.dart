@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lunchbox/components/navigation/bottom_nav_bar.dart';
 import 'package:lunchbox/core/theme/app_colors.dart';
-import 'package:lunchbox/views/recipe_generator.dart';
+import 'package:lunchbox/views/recipe_generator/recipe_generator_page.dart';
 import 'package:lunchbox/views/settings_page.dart';
 import 'package:lunchbox/views/favorites_page.dart';
 import 'package:lunchbox/views/myfridge_page.dart';
@@ -34,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   /// Screens corresponding to each navigation tab
   final List<Widget> _screens = const [
-    UserPreferencesPage(),
+    RecipeGeneratorPage(),
     FavoritesPage(),
     MyFridgePage(),
     SettingsPage(),
@@ -61,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
             color: AppColors.background,
             border: Border(
               bottom: BorderSide(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 width: 1.0,
               ),
             ),

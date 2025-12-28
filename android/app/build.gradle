@@ -12,7 +12,7 @@ plugins {
 
 android {
     namespace "com.aztech.lunchbox" // ✅ fixed this line
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

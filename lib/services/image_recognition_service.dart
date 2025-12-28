@@ -22,37 +22,110 @@ class ImageRecognitionService {
     required File imageFile,
     bool usePremiumMode = false,
   }) async {
-    return await _recognizeWithCloudVision(imageFile);
+    return await _recognizeWithCloudVision(imageFile, mode: 'food');
+  }
+
+  /// Scan receipt/grocery list for food items
+  /// 
+  /// [imageFile] - Receipt image to analyze
+  /// 
+  /// Returns list of food items from receipt with prices if available
+  static Future<List<Map<String, dynamic>>> scanReceipt({
+    required File imageFile,
+  }) async {
+    return await _recognizeWithCloudVision(imageFile, mode: 'receipt');
+  }
+
+  /// Recognize a single food item for barcode enhancement (FREEMIUM FEATURE)
+  /// 
+  /// This is a limited version of image recognition available to ALL users
+  /// to enhance barcode lookup when the API returns "Unknown Product".
+  /// 
+  /// [imageFile] - Image of the product to analyze
+  /// 
+  /// Returns single best match with confidence, or null if no match
+  static Future<Map<String, dynamic>?> recognizeSingleItemForBarcode({
+    required File imageFile,
+  }) async {
+    print('[ImageRecog] 🆓 FREEMIUM: Barcode enhancement mode');
+    
+    // Use same Cloud Vision API but only return top result
+    final results = await _recognizeWithCloudVision(imageFile, mode: 'food');
+    
+    if (results.isEmpty) {
+      print('[ImageRecog] ℹ️  No items detected for barcode enhancement');
+      return null;
+    }
+    
+    // Return only the highest confidence match
+    final topResult = results.first;
+    print('[ImageRecog] ✨ Barcode enhanced with: ${topResult['name']} (${topResult['confidence']})');
+    
+    return topResult;
   }
 
   /// Recognize using Cloud Vision API (premium)
-  static Future<List<Map<String, dynamic>>> _recognizeWithCloudVision(File imageFile) async {
-    print('[ImageRecog] ☁️  Analyzing with Cloud Vision API...');
+  static Future<List<Map<String, dynamic>>> _recognizeWithCloudVision(
+    File imageFile, {
+    String mode = 'food',
+  }) async {
+    print('[ImageRecog] ☁️  Analyzing with Cloud Vision API (mode: $mode)...');
+    print('[ImageRecog] 📤 API endpoint: $_cloudVisionAPI');
     
     final imageBytes = await imageFile.readAsBytes();
     final base64Image = base64Encode(imageBytes);
+    print('[ImageRecog] 📦 Image size: ${imageBytes.length} bytes, base64 length: ${base64Image.length}');
     
-    final response = await http.post(
-      Uri.parse(_cloudVisionAPI),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'image': base64Image}),
-    ).timeout(const Duration(seconds: 30));
-    
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
-        final detections = data['detections'] as List;
-        print('[ImageRecog] ✅ Cloud Vision detected ${detections.length} items');
+    try {
+      final response = await http.post(
+        Uri.parse(_cloudVisionAPI),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'image': base64Image,
+          'mode': mode,
+        }),
+      ).timeout(const Duration(seconds: 30));
+      
+      print('[ImageRecog] 📥 Response status: ${response.statusCode}');
+      print('[ImageRecog] 📥 Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('[ImageRecog] 🔍 Parsed data: $data');
         
-        return detections.map((item) => {
-          'name': item['name'] as String,
-          'confidence': item['confidence'] as String,
-          'source': 'cloud_vision',
-        }).toList();
+        if (data['success'] == true) {
+          // API returns 'foods' not 'detections'
+          final foods = data['foods'] as List?;
+          
+          if (foods == null || foods.isEmpty) {
+            print('[ImageRecog] ⚠️  No foods detected in image');
+            return [];
+          }
+          
+          print('[ImageRecog] ✅ Cloud Vision detected ${foods.length} items');
+          print('[ImageRecog] 📋 Foods: $foods');
+          
+          return foods.map((item) => {
+            'name': item['name'] as String,
+            'confidence': item['confidence'] as String,
+            'category': item['category'] as String?,
+            'quantity': item['quantity'] as String?,
+            'unit': item['unit'] as String?,
+            'source': 'cloud_vision',
+          }).toList();
+        } else {
+          print('[ImageRecog] ❌ API returned success=false: ${data['error'] ?? 'unknown error'}');
+          throw Exception('Cloud Vision API error: ${data['error'] ?? 'unknown'}');
+        }
       }
+      
+      print('[ImageRecog] ❌ HTTP error ${response.statusCode}: ${response.body}');
+      throw Exception('Cloud Vision API returned error: ${response.statusCode}');
+    } catch (e) {
+      print('[ImageRecog] 💥 Exception caught: $e');
+      print('[ImageRecog] 💥 Exception type: ${e.runtimeType}');
+      rethrow;
     }
-    
-    throw Exception('Cloud Vision API returned error: ${response.statusCode}');
   }
 
   /// Check if user can access image recognition feature (premium only)

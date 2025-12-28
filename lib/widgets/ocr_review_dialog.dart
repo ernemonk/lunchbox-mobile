@@ -42,8 +42,8 @@ class _OCRReviewDialogState extends State<OCRReviewDialog> {
       return item;
     }).toList();
 
-    // All items selected by default
-    selectedItems = {for (int i = 0; i < items.length; i++) i: true};
+    // All items unselected by default (user chooses what to add)
+    selectedItems = {for (int i = 0; i < items.length; i++) i: false};
   }
 
   @override

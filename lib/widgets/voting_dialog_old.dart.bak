@@ -1,0 +1,798 @@
+/// Voting Dialog Widget
+/// Shows all user submissions and allows voting for the correct one
+
+import 'package:flutter/material.dart';
+import '../core/theme/app_colors.dart';
+import '../services/barcode_consensus_service.dart';
+import '../services/ingredient_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
+class VotingDialog extends StatefulWidget {
+  final String barcode;
+  final Map<String, dynamic> currentData;
+
+  const VotingDialog({
+    super.key,
+    required this.barcode,
+    required this.currentData,
+  });
+
+  @override
+  State<VotingDialog> createState() => _VotingDialogState();
+}
+
+class _VotingDialogState extends State<VotingDialog> {
+  final BarcodeConsensusService _consensusService = BarcodeConsensusService();
+  List<Map<String, dynamic>> _submissions = [];
+  int? _userVote;
+  bool _loading = true;
+  bool _isEditMode = false;
+  bool _isSubmitting = false;
+  
+  // Edit mode controllers
+  late TextEditingController _nameController;
+  late TextEditingController _brandController;
+  String _selectedCategory = 'Other';
+  String _selectedUnit = 'pieces';
+  File? _uploadedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.currentData['name'] ?? '');
+    _brandController = TextEditingController(text: widget.currentData['brand'] ?? '');
+    // Normalize category to match dropdown options
+    _selectedCategory = _normalizeCategory(widget.currentData['category']);
+    _selectedUnit = _normalizeUnit(widget.currentData['unit']);
+    _loadSubmissions();
+  }
+  
+  // Normalize category names to match IngredientService.getCategories()
+  String _normalizeCategory(String? category) {
+    if (category == null) return 'Other';
+    final categories = IngredientService.getCategories();
+    if (categories.contains(category)) return category;
+    // Map common variants
+    const categoryMap = {
+      'Meat': 'Meat & Protein',
+      'Protein': 'Meat & Protein',
+      'Grains': 'Bread & Grains',
+      'Bakery': 'Bread & Grains',
+      'Bread': 'Bread & Grains',
+    };
+    return categoryMap[category] ?? 'Other';
+  }
+  
+  // Normalize unit to match IngredientService.getUnits()
+  String _normalizeUnit(String? unit) {
+    if (unit == null) return 'pieces';
+    final units = IngredientService.getUnits();
+    if (units.contains(unit)) return unit;
+    return 'pieces';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _brandController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSubmissions() async {
+    print('[VOTING_DIALOG] 🔄 _loadSubmissions START');
+    
+    _loading = true;
+    if (mounted) {
+      setState(() {}); // Trigger rebuild
+    }
+    print('[VOTING_DIALOG] ✅ Set loading = true');
+    
+    final submissions = await _consensusService.getSubmissions(widget.barcode);
+    print('[VOTING_DIALOG] ✅ Got ${submissions.length} submissions');
+    
+    final userVote = await _consensusService.getUserVote(widget.barcode);
+    print('[VOTING_DIALOG] ✅ Got user vote: $userVote');
+    
+    if (!mounted) {
+      print('[VOTING_DIALOG] ⚠️  Widget unmounted, aborting');
+      return;
+    }
+    
+    _submissions = submissions;
+    _userVote = userVote;
+    _loading = false;
+    
+    if (mounted) {
+      setState(() {}); // Trigger rebuild
+    }
+    print('[VOTING_DIALOG] ✅ _loadSubmissions COMPLETE');
+  }
+
+  Future<void> _vote(int index) async {
+    print('[VOTING_DIALOG] 🗳️  _vote START for index $index');
+    try {
+      await _consensusService.voteForSubmission(widget.barcode, index);
+      print('[VOTING_DIALOG] ✅ Vote recorded');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Vote recorded!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        print('[VOTING_DIALOG] 🔄 Reloading submissions after vote');
+        await _loadSubmissions();
+      }
+    } catch (e) {
+      print('[VOTING_DIALOG] ❌ Error during voting: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _enterEditMode() {
+    setState(() {
+      _isEditMode = true;
+      _nameController.text = widget.currentData['name'] ?? '';
+      _brandController.text = widget.currentData['brand'] ?? '';
+      _selectedCategory = _normalizeCategory(widget.currentData['category']);
+      _selectedUnit = _normalizeUnit(widget.currentData['unit']);
+      _uploadedImage = null;
+    });
+  }
+
+  void _exitEditMode() {
+    // CRITICAL: Unfocus before removing form fields to prevent mouse tracker freeze
+    FocusScope.of(context).unfocus();
+    
+    _isEditMode = false;
+    _uploadedImage = null;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
+    
+    if (image != null && mounted) {
+      _uploadedImage = File(image.path);
+      setState(() {});
+    }
+  }
+
+  Future<void> _submitEdit() async {
+    print('[VOTING_DIALOG] ========================================');
+    print('[VOTING_DIALOG] 🚀 _submitEdit START');
+    print('[VOTING_DIALOG] Barcode: ${widget.barcode}');
+    print('[VOTING_DIALOG] _isSubmitting: $_isSubmitting');
+    print('[VOTING_DIALOG] mounted: $mounted');
+    
+    // Validate
+    final name = _nameController.text.trim();
+    print('[VOTING_DIALOG] Name from controller: "$name"');
+    print('[VOTING_DIALOG] Brand from controller: "${_brandController.text.trim()}"');
+    print('[VOTING_DIALOG] Category: $_selectedCategory');
+    print('[VOTING_DIALOG] Unit: $_selectedUnit');
+    
+    if (name.isEmpty) {
+      print('[VOTING_DIALOG] ❌ VALIDATION FAILED: Empty name');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a product name'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+    print('[VOTING_DIALOG] ✅ Validation passed');
+
+    // Prevent double submission
+    if (_isSubmitting) {
+      print('[VOTING_DIALOG] ❌ BLOCKED: Already submitting');
+      return;
+    }
+    
+    // CRITICAL: Unfocus text fields BEFORE any state changes to prevent mouse tracker freeze
+    print('[VOTING_DIALOG] 🎯 Unfocusing text fields...');
+    FocusScope.of(context).unfocus();
+    
+    // Small delay to let focus system settle
+    print('[VOTING_DIALOG] ⏳ Waiting 50ms for focus to settle...');
+    await Future.delayed(const Duration(milliseconds: 50));
+    
+    if (!mounted) {
+      print('[VOTING_DIALOG] ❌ Widget unmounted during delay, aborting');
+      return;
+    }
+    print('[VOTING_DIALOG] ✅ Still mounted after delay');
+    
+    print('[VOTING_DIALOG] 📝 Setting _isSubmitting = true');
+    _isSubmitting = true;
+    if (mounted) {
+      print('[VOTING_DIALOG] 🎨 Calling setState for loading state...');
+      setState(() {});
+      print('[VOTING_DIALOG] ✅ setState complete');
+    }
+
+    try {
+      print('[VOTING_DIALOG] 📦 Preparing edited data...');
+      final editedData = {
+        'name': name,
+        'brand': _brandController.text.trim(),
+        'category': _selectedCategory,
+        'unit': _selectedUnit,
+        'image_url': widget.currentData['image_url'],
+        'ingredients': widget.currentData['ingredients'],
+        'allergens': widget.currentData['allergens'],
+        'nutrition': widget.currentData['nutrition'],
+      };
+      print('[VOTING_DIALOG] Edited data: $editedData');
+      print('[VOTING_DIALOG] Has uploaded image: ${_uploadedImage != null}');
+
+      print('[VOTING_DIALOG] ☁️ CALLING _consensusService.submitProductData...');
+      print('[VOTING_DIALOG] ========================================');
+      
+      await _consensusService.submitProductData(
+        widget.barcode,
+        editedData,
+        imageFile: _uploadedImage,
+      );
+      
+      print('[VOTING_DIALOG] ========================================');
+      print('[VOTING_DIALOG] ✅ Consensus service returned successfully!');
+
+      if (!mounted) {
+        print('[VOTING_DIALOG] ❌ Widget unmounted after submission, aborting UI updates');
+        return;
+      }
+      print('[VOTING_DIALOG] ✅ Still mounted after submission');
+      
+      // Reset state FIRST
+      print('[VOTING_DIALOG] 🔄 Resetting state variables...');
+      _isSubmitting = false;
+      _isEditMode = false;
+      _uploadedImage = null;
+      print('[VOTING_DIALOG] ✅ State variables reset');
+      
+      // Show success snackbar
+      print('[VOTING_DIALOG] 📢 Showing success snackbar...');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Your version has been submitted!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      print('[VOTING_DIALOG] ✅ Snackbar shown');
+      
+      // Trigger rebuild LAST
+      if (mounted) {
+        print('[VOTING_DIALOG] 🎨 Calling final setState...');
+        setState(() {});
+        print('[VOTING_DIALOG] ✅ Final setState complete');
+      }
+      
+      print('[VOTING_DIALOG] 🔄 Calling _loadSubmissions...');
+      await _loadSubmissions();
+      print('[VOTING_DIALOG] ✅✅✅ _submitEdit COMPLETE SUCCESS ✅✅✅');
+      print('[VOTING_DIALOG] ========================================');
+    } catch (e, stackTrace) {
+      print('[VOTING_DIALOG] ❌❌❌ ERROR IN _submitEdit ❌❌❌');
+      print('[VOTING_DIALOG] Error: $e');
+      print('[VOTING_DIALOG] Stack trace: $stackTrace');
+      print('[VOTING_DIALOG] ========================================');
+      
+      _isSubmitting = false;
+      
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 600),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                if (_isEditMode)
+                  IconButton(
+                    onPressed: _exitEditMode,
+                    icon: const Icon(Icons.arrow_back),
+                    color: AppColors.primary,
+                    tooltip: 'Back to voting',
+                  ),
+                Icon(
+                  _isEditMode ? Icons.edit : Icons.how_to_vote,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isEditMode ? 'Edit Product Info' : 'Vote for Correct Info',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        _isEditMode 
+                          ? 'Submit your version'
+                          : 'Help improve product data',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Content - either edit form or voting list
+            if (_isEditMode)
+              _buildEditForm()
+            else
+              _buildVotingList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditForm() {
+    final categories = IngredientService.getCategories();
+    final units = IngredientService.getUnits();
+    
+    return Expanded(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image section
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: _uploadedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(_uploadedImage!, fit: BoxFit.cover),
+                        )
+                      : widget.currentData['image_url'] != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                widget.currentData['image_url'],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.image,
+                                  size: 48,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.image,
+                              size: 48,
+                              color: AppColors.textSecondary,
+                            ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.add_photo_alternate, size: 18),
+                label: Text(_uploadedImage != null || widget.currentData['image_url'] != null 
+                  ? 'Change Image' 
+                  : 'Add Image'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Product name
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Product Name*',
+                prefixIcon: Icon(Icons.shopping_bag),
+                border: OutlineInputBorder(),
+              ),
+              // NOTE: autofocus removed - it can cause mouse tracker freeze when form is removed
+            ),
+            const SizedBox(height: 12),
+            
+            // Brand
+            TextFormField(
+              controller: _brandController,
+              decoration: const InputDecoration(
+                labelText: 'Brand (optional)',
+                prefixIcon: Icon(Icons.business),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Category and Unit
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: categories.map((cat) {
+                      return DropdownMenuItem(
+                        value: cat,
+                        child: Text(cat),
+                      );
+                    }).toList(),
+                    selectedItemBuilder: (BuildContext context) {
+                      return categories.map<Widget>((String category) {
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            category,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        );
+                      }).toList();
+                    },
+                    onChanged: (value) => setState(() => _selectedCategory = value!),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedUnit,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: units.map((unit) {
+                      return DropdownMenuItem(
+                        value: unit,
+                        child: Text(unit),
+                      );
+                    }).toList(),
+                    selectedItemBuilder: (BuildContext context) {
+                      return units.map<Widget>((String unit) {
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            unit,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        );
+                      }).toList();
+                    },
+                    onChanged: (value) => setState(() => _selectedUnit = value!),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Submit button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting ? null : _submitEdit,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check),
+                label: Text(_isSubmitting ? 'Submitting...' : 'Submit My Version'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVotingList() {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Info box
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Vote for the most accurate product information. The version with the most votes becomes the consensus.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+            // Submissions list
+            if (_loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_submissions.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'No submissions yet.\nBe the first to contribute!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _enterEditMode,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Submit My Version'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _submissions.length,
+                  itemBuilder: (context, index) {
+                    final submission = _submissions[index];
+                    final isUserVote = _userVote == index;
+                    final votes = submission['votes'] as int;
+                    final isTopVoted = index == 0;
+
+                    return Card(
+                      color: isUserVote 
+                          ? AppColors.primary.withValues(alpha: 0.1)
+                          : AppColors.background,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: InkWell(
+                        onTap: () => _vote(index),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              // Image thumbnail
+                              if (submission['image_url'] != null)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Image.network(
+                                    submission['image_url'],
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.grey[800],
+                                      child: const Icon(Icons.image_not_supported, size: 20),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Icon(Icons.image, size: 20),
+                                ),
+                              const SizedBox(width: 12),
+
+                              // Product info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            submission['name'] ?? 'Unknown',
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (isTopVoted) ...[
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.verified,
+                                            size: 14,
+                                            color: Colors.green,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    if (submission['brand'] != null) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        submission['brand'],
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      submission['category'] ?? 'Other',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.accent,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+
+                              // Vote count and button
+                              Column(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isUserVote
+                                          ? AppColors.primary
+                                          : Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isUserVote ? Icons.check : Icons.thumb_up,
+                                          size: 14,
+                                          color: Colors.white,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '$votes',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            
+            // Submit new version button (only show when there are existing submissions)
+            if (!_loading && _submissions.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _enterEditMode,
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  label: const Text(
+                    'Submit Different Version',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+    );
+  }
+}
